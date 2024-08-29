@@ -1,0 +1,92 @@
+version: 2.1
+
+jobs:
+  initialize:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+
+      # Install Minikube
+      - run:
+          name: Install Minikube
+          command: |
+            curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+            sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+      # Start Minikube
+      - run:
+          name: Start Minikube
+          command: minikube start --driver=docker
+
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+      # Build Docker image
+      - run:
+          name: Install make file
+          command: sudo apt install make -y
+
+      # Load Docker image into Minikube
+      - run:
+          name: Set alias for kubectl
+          command: alias kubectl="minikube kubectl --"
+      - run:
+          name: Install Helm
+          command: |
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+      # Install promethues and grafana
+      - run:
+          name: Install promethues and grafana
+          command: |
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+            helm repo update
+            helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -f ./kube/custom-values.yaml
+      
+      - run: 
+          name: Install minikube addons
+          command: |
+            minikube addons enable registry 
+            minikube addons enable metrics-server 
+            minikube addons enable ingress 
+            minikube addons enable ingress-dns
+            minikube addons enable storage-provisioner
+      
+      - run: 
+          name: Install Minikube to hostfile
+          command: |
+            sudo bash -c "echo \"$(minikube ip) dev.k8s\" >> /etc/hosts"
+            sudo bash -c "echo \"$(minikube ip) grafana.k8s\" >> /etc/hosts"
+      
+      - run: 
+          name: Install Nodejs v20
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh
+            sudo -E bash nodesource_setup.sh
+            sudo apt update
+            sudo apt install nodejs -y
+      
+      - run:
+          name: Run npm Build
+          command: |
+            npm install --no-interaction
+            npm run build
+            touch public/ready
+      
+      - run: 
+          name: Execute the deployment 
+          command: | 
+            eval $(minikube docker-env)
+            docker run -d -p 5001:5000 --name myregistry registry:2
+            eval $(minikube docker-env)  
+            make up
+
+workflows:
+  version: 2
+  deploy:
+    jobs:
+      - initialize
