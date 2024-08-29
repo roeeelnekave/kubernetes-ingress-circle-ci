@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "build": "gulp --gulpfile app/gulp/gulpfile.js --cwd ."
+  },
+  "dependencies": {
+    "bootstrap": "^5.1.3",
+    "jquery": "^3.6.0",
+    "kisphp-assets": "^0.6.0"
+  }
+}
+
