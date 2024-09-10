@@ -1,3 +1,4 @@
+# Setup Grafana and prometheus monitoring in kubernetes with flask inside and deploy using circle ci
 # Prerequities
 - 64-bit chip in your system
 - minikube
